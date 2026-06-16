@@ -260,16 +260,16 @@
       <button class="ctrl" id="bExchange">Exchange</button>
       <button class="ctrl warn" id="bPass">Pass</button>
     </div>
+    <div class="controls" id="exControls" style="display:none">
+      <button class="ctrl play" id="bSwapConfirm">Swap</button>
+      <button class="ctrl warn" id="bSwapCancel">Cancel</button>
+    </div>
   </div>
 </div>
 
 <!-- overlays -->
 <div class="overlay" id="ovBlank"><div class="modal"><h3>Choose a letter for the blank</h3>
   <div class="blankpick" id="blankPick"></div></div></div>
-
-<div class="overlay" id="ovExchange"><div class="modal"><h3>Exchange tiles</h3>
-  <p style="color:var(--muted);font-size:.88rem">Tap the tiles to swap, then confirm. You'll skip scoring this turn.</p>
-  <div class="row" style="margin-top:16px"><button class="btn alt" id="exCancel">Cancel</button><button class="btn accent" id="exConfirm">Swap</button></div></div></div>
 
 <div class="overlay" id="ovOver"><div class="modal"><h3 id="overTitle">Game over</h3>
   <div class="gostats" id="overStats"></div>
@@ -858,7 +858,10 @@ function updateTurnMsg(html){
 function updateControls(){
   const can=localCanAct() && !exchangeMode;
   ["bPlay","bRecall","bShuffle","bExchange","bPass"].forEach(id=>$("#"+id).disabled=!can);
+  $("#controls").style.display = exchangeMode? "none":"flex";
+  $("#exControls").style.display = exchangeMode? "flex":"none";
 }
+function updateSwapLabel(){ $("#bSwapConfirm").textContent = exchangeSel.size? ("Swap ("+exchangeSel.size+")") : "Swap"; }
 
 /* ---------- placing ---------- */
 function placeSelected(r,c){
@@ -895,7 +898,7 @@ renderRack=function(){
     el.innerHTML=(t==="_"?"blank":t)+(t==="_"?"":`<span class="pts">${v}</span>`);
     if(showRack||!NET){
       on(el,()=>{
-        if(exchangeMode){ exchangeSel.has(idx)?exchangeSel.delete(idx):exchangeSel.add(idx); renderRack(); return; }
+        if(exchangeMode){ exchangeSel.has(idx)?exchangeSel.delete(idx):exchangeSel.add(idx); updateSwapLabel(); renderRack(); return; }
         if(!localCanAct()) return;
         selected = selected===idx?null:idx; renderRack(); renderBoard();
       });
@@ -928,13 +931,15 @@ on($("#bPass"),()=>{ if(localCanAct()) doAction({type:"pass"}); });
 on($("#bExchange"),()=>{
   if(!localCanAct()) return;
   if(G.bag.length<7){ flash("Not enough tiles left in the bag to exchange.",true); return; }
-  exchangeMode=true; exchangeSel.clear(); recallAll(); $("#ovExchange").classList.add("show"); updateControls();
+  exchangeMode=true; exchangeSel.clear(); recallAll();
+  updateSwapLabel(); updateControls(); renderRack();
+  $("#turnMsg").innerHTML="Tap the tiles you want to swap, then press <b>Swap</b>.";
 });
-on($("#exCancel"),()=>{ exchangeMode=false; $("#ovExchange").classList.remove("show"); updateControls(); renderRack(); });
-on($("#exConfirm"),()=>{
-  $("#ovExchange").classList.remove("show");
-  const idx=[...exchangeSel]; exchangeMode=false; updateControls();
-  if(!idx.length){ renderRack(); return; }
+on($("#bSwapCancel"),()=>{ exchangeMode=false; exchangeSel.clear(); updateControls(); renderRack(); updateTurnMsg(); });
+on($("#bSwapConfirm"),()=>{
+  const idx=[...exchangeSel];
+  if(!idx.length){ flash("Tap at least one tile to swap, or press Cancel.",true); return; }
+  exchangeMode=false; exchangeSel.clear(); updateControls();
   doAction({type:"exchange", indices:idx});
 });
 
