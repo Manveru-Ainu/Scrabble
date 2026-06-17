@@ -638,34 +638,26 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const TAP = "ontouchstart" in window ? "touchend" : "click";
 function on(el,fn){ el.addEventListener("click",fn); if(TAP==="touchend") el.addEventListener("touchend",e=>{e.preventDefault();fn(e);}); }
 
-/* ---------- dictionary ---------- */
+/* ---------- dictionary ----------
+   ONE consistent, classroom-appropriate word list bundled in this file.
+   No network: identical for every player (host, clients, offline) so the
+   machine and the humans always agree on what counts as a word.            */
 let DICT=null, LENIDX=null;
-const DICT_SOURCES=[
-  "https://cdn.jsdelivr.net/gh/dolph/dictionary@master/enable1.txt",
-  "https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt"
-];
+// the only 2-letter words allowed (common, unambiguous) — everything else
+// like AA / TI / OS / ED / RE is filtered out so the machine can't use them
+const OK2=new Set("AM AN AS AT AX BE BY DO GO HA HE HI ID IF IN IS IT ME MY NO OF OH OK ON OR OX SO TO UP US WE".split(" "));
 function setDict(set,label){ DICT=set; LENIDX=E.buildLenIndex([...set]);
   $("#dictDot").className="dot ok"; $("#dictMsg").textContent=label; }
-async function loadDict(){
-  // 1) instant baseline from the word list bundled inside this file (works offline)
-  const base=new Set();
-  const blob=(window.WB_WORDS||"");
-  for(const w of blob.split(" ")){ if(w.length>=2) base.add(w); }
-  if(base.size>0) setDict(base, base.size.toLocaleString()+" words ready");
-  else { $("#dictDot").className="dot load"; $("#dictMsg").textContent="Loading dictionary…"; }
-  // 2) extend to the full dictionary when online (jsDelivr, then GitHub raw)
-  for(const url of DICT_SOURCES){
-    try{
-      const r=await fetch(url); if(!r.ok) throw 0;
-      const txt=await r.text(); const full=new Set(base);
-      for(const line of txt.split(/\r?\n/)){const w=line.trim().toUpperCase(); if(w.length>=2&&/^[A-Z]+$/.test(w)) full.add(w);}
-      if(full.size>base.size){ setDict(full, full.size.toLocaleString()+" words ready"); return; }
-    }catch(e){}
+function loadDict(){
+  const set=new Set();
+  for(const w of (window.WB_WORDS||"").split(" ")){
+    if(w.length<2) continue;
+    if(w.length===2 && !OK2.has(w)) continue;   // drop obscure 2-letter words
+    set.add(w);
   }
-  if(base.size===0){
-    const tiny=new Set("THE AND CAT DOG WET EXTRA WORD PLAY GAME".split(" "));
-    setDict(tiny,"Limited word list — connect to the internet for the full one.");
-  }
+  OK2.forEach(w=>set.add(w));                    // guarantee the common ones exist
+  if(set.size>50) setDict(set, set.size.toLocaleString()+" words ready");
+  else { setDict(new Set("THE AND CAT DOG WET EXTRA WORD PLAY GAME".split(" ").concat([...OK2])),"Limited word list."); }
 }
 loadDict();
 
